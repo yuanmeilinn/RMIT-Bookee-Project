@@ -1,0 +1,243 @@
+version: "3"
+
+networks: 
+  bookyme-network:
+    driver: bridge
+
+services:
+
+  # Server Interfaces
+  backend:
+    container_name: bookyme-gateway
+    restart: always
+    env_file: 
+      - ./Environment/Gateway.env
+    build: ./Gateway
+    ports: 
+      - "5000:5000"
+    networks: 
+      - bookyme-network
+    depends_on: 
+      - userservice
+
+  userservice:
+    container_name: user-service
+    restart: always
+    env_file:
+      - ./Environment/UserService.env
+    build: ./User
+    ports: 
+      - "5200:5200"
+    networks: 
+      - bookyme-network
+    depends_on:
+      - mongo-users
+
+  storeservice:
+    container_name: stores-service
+    restart: always
+    env_file:
+      - ./Environment/StoreService.env
+    build: ./Stores
+    ports: 
+      - "5100:5100"
+    networks:
+      - bookyme-network
+    depends_on:
+      - mongo-stores
+      
+  notificationservice:
+    container_name: notification-service
+    restart: always
+    env_file:
+      - ./Environment/NotificationService.env
+    build: ./Notifications
+    ports: 
+      - "5300:5300"
+    networks:
+      - bookyme-network
+    depends_on:
+      - mongo-notification
+
+  bookingservice:
+    container_name: booking-service
+    restart: always
+    env_file:
+      - ./Environment/BookingService.env
+    build: ./Booking
+    ports: 
+      - "5400:5400"
+    networks:
+      - bookyme-network
+    depends_on:
+      - mongo-booking
+
+
+
+
+  # MongoDB Databases
+  # And JSON seaders
+  # User Service
+  mongo-users:
+    container_name: mongo-users
+    restart: on-failure
+    image: mongo 
+    command: mongod --port 3220
+    volumes:
+      - ./seed/Users/init.js:/docker-entrypoint-initdb.d/init.js:ro
+      - users-db:/data/db
+    networks:
+      - bookyme-network
+    ports:
+      - "3220:3220"
+
+  # Stores
+  mongo-stores:
+    container_name: mongo-stores
+    restart: on-failure
+    image: mongo
+    command: mongod --port 3221
+    volumes:
+      - stores-db:/data/db
+    networks:
+      - bookyme-network
+    ports:
+      - "3221:3221"
+      
+  mongo-booking:
+    container_name: mongo-booking
+    restart: on-failure
+    image: mongo
+    command: mongod --port 3222
+    volumes:
+      - booking-db:/data/db
+    networks:
+      - bookyme-network
+    ports:
+      - "3222:3222"
+
+  mongo-notification:
+    container_name: mongo-notification
+    restart: on-failure
+    image: mongo 
+    command: mongod --port 3223
+    volumes:
+      - notification-db:/data/db
+    networks:
+      - bookyme-network
+    ports:
+      - "3223:3223"
+
+  # Mongo Seeders
+  users-seed:
+    image: fvilers/mongo-seed
+    networks:
+      - bookyme-network
+    container_name: users-seed
+    environment:
+      - MONGO_HOST=mongo-users
+      - MONGO_PORT=3220
+    depends_on:
+      - mongo-users
+    volumes:
+      - ./seed/users.json:/data/users.json:ro
+    command:
+      - "mongoimport --host mongo-users --port 3220 --db BookymeUsers --type json --file /data/users.json --jsonArray"
+
+  stores-seed:
+    image: fvilers/mongo-seed
+    networks:
+      - bookyme-network
+    container_name: stores-seed
+    environment:
+      - MONGO_HOST=mongo-stores
+      - MONGO_PORT=3221
+    depends_on:
+      - mongo-stores
+    volumes:
+      - ./seed/stores.json:/data/stores.json:ro
+    command:
+        "mongoimport --host mongo-stores --port 3221 --db BookymeStores --type json --file /data/stores.json --jsonArray"
+        
+  catalogs-seed:
+    image: fvilers/mongo-seed
+    networks:
+      - bookyme-network
+    container_name: catalogs-seed
+    environment:
+        - MONGO_HOST=mongo-stores
+        - MONGO_PORT=3221
+    depends_on:
+        - mongo-stores
+    volumes:
+        - ./seed/catalogs.json:/data/catalogs.json:ro
+    command:
+        "mongoimport --host mongo-stores --port 3221 --db BookymeStores --type json --file /data/catalogs.json --jsonArray"
+    
+  reviews-seed:
+    image: fvilers/mongo-seed
+    networks:
+      - bookyme-network
+    container_name: reviews-seed
+    environment:
+      - MONGO_HOST=mongo-stores
+      - MONGO_PORT=3221
+    depends_on:
+      - mongo-stores
+    volumes:
+      - ./seed/reviews.json:/data/reviews.json:ro
+    command:
+        "mongoimport --host mongo-stores --port 3221 --db BookymeStores --type json --file /data/reviews.json --jsonArray"
+        
+  booking-seed:
+    image: fvilers/mongo-seed
+    networks:
+      - bookyme-network
+    container_name: booking-seed
+    environment:
+      - MONGO_HOST=mongo-booking
+      - MONGO_PORT=3222
+    depends_on:
+      - mongo-booking
+    volumes:
+      - ./seed/booking.json:/data/booking.json:ro
+    command:
+        "mongoimport --host mongo-booking --port 3222 --db BookymeBooking --type json --file /data/booking.json --jsonArray"
+        
+  slot-seed:
+    image: fvilers/mongo-seed
+    networks:
+      - bookyme-network
+    container_name: slot-seed
+    environment:
+      - MONGO_HOST=mongo-booking
+      - MONGO_PORT=3222
+    depends_on:
+      - mongo-booking
+    volumes:
+      - ./seed/slot.json:/data/slot.json:ro
+    command:
+        "mongoimport --host mongo-booking --port 3222 --db BookymeBooking --type json --file /data/slot.json --jsonArray"
+
+  notifications-seed: 
+    image: fvilers/mongo-seed
+    networks:
+      - bookyme-network
+    container_name: notifications-seed
+    environment:
+      - MONGO_HOST=mongo-notification
+      - MONGO_PORT=3223
+    depends_on:
+      - mongo-notification
+    volumes:
+      - ./seed/notifications.json:/data/notifications.json:ro
+    command:
+        "mongoimport --host mongo-notification --port 3223 --db BookymeNotifications --type json --file /data/notifications.json --jsonArray"
+        
+
+
+volumes:
+  users-db:
+  stores-db:
+  booking-db:
+  notification-db:
