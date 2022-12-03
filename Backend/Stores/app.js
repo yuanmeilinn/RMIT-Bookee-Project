@@ -1,8 +1,6 @@
 //
 //  App.js
-//  BookyMe - User Service
-//
-//  Created by Breaking Code on 29/10/2020.
+//  Bookee - User Service
 //
 
 require('dotenv').config();
